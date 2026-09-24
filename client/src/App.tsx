@@ -50,7 +50,7 @@ function App(): JSX.Element {
     <>
       <Board />
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
-        <button onClick={backToMenu}>Về menu</button>
+        <button style={{ padding: '6px', cursor: 'pointer', fontSize: '14px' }} onClick={backToMenu}>Về menu</button>
       </div>
     </>
   )
