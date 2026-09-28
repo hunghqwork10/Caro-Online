@@ -1,13 +1,16 @@
-import express, { Express, Request, Response } from 'express'
+import express, { Express, Response } from 'express'
+import roomsRouter from './rooms'
 
 const app: Express = express()
 const PORT = process.env.PORT || 5000
 
 app.use(express.json())
 
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (_req, res: Response) => {
   res.send('Server is running')
 })
+
+app.use('/rooms', roomsRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`)
