@@ -1,12 +1,37 @@
 // src/services/gameService.ts
 import axios from 'axios';
 
-export interface RoomResponse {
-    id: string;
-    status: 'waiting' | 'playing' | 'finished';
-    board: string[][];
-    currentTurn: string;
-    winnerId?: string | 'draw' | null;
+export interface RoomData {
+  id: string;
+  status: 'waiting' | 'playing' | 'finished';
+  board: string[][];
+  boardSize: number;
+  currentTurn: string;
+  winnerId?: string | null;
+}
+
+export interface RoomSession {
+  room: RoomData;
+  playerId: string;
+}
+
+export async function createRoom(name: string): Promise<RoomSession> {
+  const response = await axios.post<RoomSession>('/api/rooms', {
+    name,
+    boardSize: 10,
+  });
+  return response.data;
+}
+
+export async function joinRoom(
+  roomId: string,
+  name: string,
+): Promise<RoomSession> {
+  const response = await axios.post<RoomSession>(
+    `/api/rooms/${roomId}/join`,
+    { name },
+  );
+  return response.data;
 }
 
 /**
@@ -18,24 +43,24 @@ export const sendMoveToServer = async (
     row: number, 
     col: number, 
     boardSize: number
-): Promise<RoomResponse | null> => {
+): Promise<RoomData | null> => {
     
     // Tính toán index mảng 1 chiều từ tọa độ 2 chiều
     const index = (row * boardSize) + col;
 
     try {
         // Gọi API thông qua Vite proxy (/api)
-        const response = await axios.post<RoomResponse>(`/api/rooms/${roomId}/moves`, {
+        const response = await axios.post<RoomData>(`/api/rooms/${roomId}/moves`, {
             playerId: playerId,
             index: index
         });
         return response.data;
     } catch (error: any) {
-        if (error.response) {
-            alert(`Lỗi: ${error.response.data.message}`);
-        } else {
-            console.error('Lỗi kết nối mạng:', error.message);
-        }
+        const data = error.response?.data;
+        const message =
+            typeof data === 'string' ? data : data?.message ?? error.message;
+
+        alert(`Lỗi: ${message}`);
         return null;
     }
 };

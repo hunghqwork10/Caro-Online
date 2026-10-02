@@ -43,7 +43,11 @@ export function setupGameSocket(io: Server) {
         
         // Người chơi tham gia vào phòng socket (để broadcast dễ hơn)
         socket.on('join_room', (roomId: string) => {
-            socket.join(roomId);
+            void socket.join(roomId);
+        });
+
+        socket.on('leave_room', (roomId: string) => {
+            void socket.leave(roomId);
         });
 
         // LẮNG NGHE SỰ KIỆN ĐÁNH CỜ
@@ -89,6 +93,7 @@ export function setupGameSocket(io: Server) {
                     winnerId: userId,
                     lastMove: { x, y }
                 });
+                io.to(roomId).emit('move_updated', { room });
                 return;
             }
 
@@ -97,11 +102,7 @@ export function setupGameSocket(io: Server) {
             room.currentTurn = nextPlayer ? nextPlayer.id : userId;
 
             // 7. PHÁT SÓNG ĐỒNG BỘ ĐẾN CẢ PHÒNG
-            io.to(roomId).emit('move_updated', {
-                board: room.board,
-                nextTurn: room.currentTurn,
-                lastMove: { x, y, symbol: player.symbol }
-            });
+            io.to(roomId).emit('move_updated', { room });
         });
     });
 }
