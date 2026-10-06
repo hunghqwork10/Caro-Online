@@ -12,3 +12,51 @@
   font-size: 16px;
   cursor: pointer;
 }
+
+.available-rooms {
+  width: min(520px, calc(100% - 32px));
+  margin-top: 16px;
+}
+
+.available-rooms-header,
+.available-rooms-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.available-rooms-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.available-rooms-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.available-rooms-list li {
+  padding: 12px;
+  border: 1px solid #b8b8b8;
+  border-radius: 4px;
+}
+
+.available-rooms-list li div {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.available-rooms-list li span {
+  font-size: 14px;
+}
+
+.available-rooms-list button,
+.available-rooms-header button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 14px;
+}

@@ -364,15 +364,17 @@ router.post('/quick-join', (req: Request, res: Response) => {
 
 // GET /rooms: trả về danh sách rút gọn các phòng đang chờ người chơi.
 router.get('/', (_req: Request, res: Response) => {
-    // Danh sách chỉ gồm phòng đang chờ và thông tin tóm tắt để chọn phòng.
+    // Chỉ liệt kê các phòng đang chờ và còn chỗ để người chơi có thể tham gia.
     const waitingRooms = [...rooms.values()]
-        .filter((room) => room.status === 'waiting')
+        .filter((room) => room.status === 'waiting' && room.players.length < room.maxPlayers)
         .map((room) => ({
             id: room.id,
             hostId: room.hostId,
+            hostName: room.players.find((player) => player.id === room.hostId)?.name ?? 'Host',
             playerCount: room.players.length,
             boardSize: room.boardSize,
             createdAt: room.createdAt,
+            maxPlayers: room.maxPlayers,
         }));
     
     res.json(waitingRooms);

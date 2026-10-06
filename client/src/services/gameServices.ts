@@ -15,6 +15,20 @@ export interface RoomSession {
   playerId: string;
 }
 
+export interface AvailableRoom {
+  id: string;
+  hostName: string;
+  playerCount: number;
+  maxPlayers: number;
+  boardSize: number;
+  createdAt: number;
+}
+
+export async function getAvailableRooms(): Promise<AvailableRoom[]> {
+  const response = await axios.get<AvailableRoom[]>('/api/rooms');
+  return response.data;
+}
+
 export async function createRoom(name: string): Promise<RoomSession> {
   const response = await axios.post<RoomSession>('/api/rooms', {
     name,
