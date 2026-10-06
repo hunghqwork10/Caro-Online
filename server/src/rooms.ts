@@ -329,60 +329,37 @@ router.post('/', (req: Request, res: Response) => {
     });
 });
 
-// POST /rooms/quick-join: tham gia phòng chờ đầu tiên hoặc tạo phòng mới.
+// POST /rooms/quick-join: tham gia phòng chờ đầu tiên còn chỗ.
 router.post('/quick-join', (req: Request, res: Response) => {
-    const { name, boardSize = 10 } = req.body as {
-        name?: string;
-        boardSize?: number;
-    };
+    const { name } = req.body as { name?: string };
 
     if (typeof name !== 'string' || !name.trim()) {
         res.status(400).json({ message: 'Tên người chơi là bắt buộc' });
         return;
     }
 
-    if (!Number.isInteger(boardSize) || boardSize < 5 || boardSize > 30) {
-        res.status(400).json({ message: 'boardSize phải là số nguyên từ 5 đến 30' });
-        return;
-    }
-
-    const playerId = randomUUID();
     const availableRoom = [...rooms.values()].find(
         (room) => room.status === 'waiting' && room.players.length < room.maxPlayers,
     );
 
-    if (availableRoom) {
-        availableRoom.players.push({
-            id: playerId,
-            name: name.trim(),
-            symbol: 'O',
-        });
-        availableRoom.status = 'playing';
-
-        ioServer?.to(availableRoom.id).emit('game_start', availableRoom);
-        ioServer?.to(availableRoom.id).emit('move_updated', { room: availableRoom });
-        broadcastRoomList();
-
-        res.status(200).json({ room: availableRoom, playerId });
+    if (!availableRoom) {
+        res.status(404).json({ message: 'Hiện không có phòng trống' });
         return;
     }
 
-    const roomId = randomUUID().slice(0, 8);
-    const room: Room = {
-        id: roomId,
-        hostId: playerId,
-        players: [{ id: playerId, name: name.trim(), symbol: 'X' }],
-        status: 'waiting',
-        boardSize,
-        maxPlayers: 2,
-        createdAt: Date.now(),
-        board: Array.from({ length: boardSize }, () => Array<string>(boardSize).fill('')),
-        currentTurn: playerId,
-    };
+    const playerId = randomUUID();
+    availableRoom.players.push({
+        id: playerId,
+        name: name.trim(),
+        symbol: 'O',
+    });
+    availableRoom.status = 'playing';
 
-    rooms.set(roomId, room);
+    ioServer?.to(availableRoom.id).emit('game_start', availableRoom);
+    ioServer?.to(availableRoom.id).emit('move_updated', { room: availableRoom });
     broadcastRoomList();
-    res.status(201).json({ room, playerId });
+
+    res.status(200).json({ room: availableRoom, playerId });
 });
 
 // GET /rooms: trả về danh sách rút gọn các phòng đang chờ người chơi.
