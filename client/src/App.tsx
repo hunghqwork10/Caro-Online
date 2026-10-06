@@ -2,7 +2,7 @@ import type { JSX } from 'react'
 import './App.css'
 import Board from './components/Board'
 import React, { useState } from 'react'
-import { createRoom, joinRoom, RoomSession } from './services/gameServices'
+import { createRoom, joinRoom, quickJoinRoom, RoomSession } from './services/gameServices'
 
 // Định nghĩa bộ các trạng thái cố định
 const GAME_STATES = {
@@ -13,12 +13,14 @@ const GAME_STATES = {
 
 function MainMenu({
   onStart,
+  onQuickJoin,
   onCredits,
   roomCode,
   setRoomCode,
   onJoinRoom,
 }: {
   onStart: () => void;
+  onQuickJoin: () => void;
   onCredits: () => void;
   roomCode: string;
   setRoomCode: (roomCode: string) => void;
@@ -28,6 +30,7 @@ function MainMenu({
     <div className="menu">
       <h1>Caro Online</h1>
       <button onClick={onStart}>Bắt đầu</button>
+      <button onClick={onQuickJoin}>Vào phòng ngẫu nhiên</button>
       <input
         value={roomCode}
         onChange={(event) => setRoomCode(event.target.value)}
@@ -66,6 +69,17 @@ function App(): JSX.Element {
     }
   };
 
+  const quickJoin = async () => {
+    try {
+      const joined = await quickJoinRoom('Người chơi');
+      setSession(joined);
+      setGameState(GAME_STATES.PLAYING);
+    } catch (error) {
+      console.error('Không thể vào phòng ngẫu nhiên:', error);
+      alert('Không thể vào phòng ngẫu nhiên. Vui lòng thử lại.');
+    }
+  };
+
   const joinExistingRoom = async () => {
     try {
       if(!roomCode.trim()) {
@@ -98,6 +112,7 @@ function App(): JSX.Element {
   if (gameState === GAME_STATES.MENU) {
     return <MainMenu
           onStart={startGame}
+              onQuickJoin={quickJoin}
               onCredits={viewCredits}
               // Truyền thêm props để nhập room code nếu MainMenu xử lý việc này
               roomCode={roomCode}

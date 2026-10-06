@@ -23,6 +23,14 @@ export async function createRoom(name: string): Promise<RoomSession> {
   return response.data;
 }
 
+export async function quickJoinRoom(name: string): Promise<RoomSession> {
+  const response = await axios.post<RoomSession>('/api/rooms/quick-join', {
+    name,
+    boardSize: 10,
+  });
+  return response.data;
+}
+
 export async function joinRoom(
   roomId: string,
   name: string,
