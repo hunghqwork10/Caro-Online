@@ -1,5 +1,9 @@
 {
+  "scripts": {
+    "dev": "concurrently -k -n server,client \"npm run dev --prefix server\" \"pnpm --dir client run dev\""
+  },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "tsx": "^4.23.15"
   }
 }

@@ -32,43 +32,65 @@ function MainMenu({
   onRefreshRooms: () => void;
   onJoinRoom: (roomId: string) => void;
 }): JSX.Element {
+  const [showRoomModal, setShowRoomModal] = useState(false);
+
   return (
-    <div className="menu">
-      <h1>Caro Online</h1>
-      <button onClick={onStart}>Bắt đầu</button>
-      <button onClick={onQuickJoin}>Vào phòng ngẫu nhiên</button>
-      <section className="available-rooms" aria-labelledby="available-rooms-title">
-        <div className="available-rooms-header">
-          <h2 id="available-rooms-title">Phòng đang chờ</h2>
-          <button type="button" onClick={onRefreshRooms} disabled={roomsLoading}>
-            {roomsLoading ? 'Đang tải...' : 'Làm mới'}
-          </button>
-        </div>
-        {roomsError && <p role="alert">{roomsError}</p>}
-        {!roomsError && !roomsLoading && availableRooms.length === 0 && (
-          <p>Hiện chưa có phòng trống.</p>
-        )}
-        <ul className="available-rooms-list">
-          {availableRooms.map((room) => (
-            <li key={room.id}>
-              <div>
-                <strong>{room.hostName}</strong>
-                <span>{room.playerCount}/{room.maxPlayers} người · Bàn {room.boardSize}×{room.boardSize}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => onJoinRoom(room.id)}
-                disabled={joiningRoomId !== null}
-              >
-                {joiningRoomId === room.id ? 'Đang vào...' : 'Tham gia'}
+  <div className="menu">
+    <h1>Caro Online</h1>
+    <button onClick={onStart}>Bắt đầu</button>
+    <button onClick={onQuickJoin}>Vào phòng ngẫu nhiên</button>
+    
+    {/* Thay thế phần hiển thị trực tiếp bằng nút "Chọn phòng" */}
+    <button onClick={() => setShowRoomModal(true)}>Chọn phòng</button>
+
+    <button onClick={onCredits}>Credits</button>
+
+    {/* Cửa sổ Modal hiển thị danh sách phòng (Chỉ hiện khi showRoomModal === true) */}
+    {showRoomModal && (
+      <div className="modal-overlay" onClick={() => setShowRoomModal(false)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <button className="modal-close" onClick={() => setShowRoomModal(false)}>×</button>
+          
+          <section className="available-rooms" aria-labelledby="available-rooms-title">
+            <div className="available-rooms-header">
+              <h2 id="available-rooms-title">Danh sách phòng</h2>
+              <button type="button" onClick={onRefreshRooms} disabled={roomsLoading}>
+                {roomsLoading ? 'Đang tải...' : 'Làm mới'}
               </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <button onClick={onCredits}>Credits</button>
-    </div>
-  )
+            </div>
+            
+            {roomsError && <p role="alert">{roomsError}</p>}
+            {!roomsError && !roomsLoading && availableRooms.length === 0 && (
+              <p>Hiện chưa có phòng trống.</p>
+            )}
+            
+            <ul className="available-rooms-list">
+              {availableRooms.map((room) => (
+                <li key={room.id}>
+                  <div>
+                    <strong>{room.hostName}</strong>
+                    <span>{room.playerCount}/{room.maxPlayers} người · Bàn {room.boardSize}×{room.boardSize}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onJoinRoom(room.id);
+                      setShowRoomModal(false); // Đóng modal sau khi vào phòng thành công
+                    }}
+                    disabled={joiningRoomId !== null}
+                  >
+                    {joiningRoomId === room.id ? 'Đang vào...' : 'Tham gia'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 }
 
 function Credits({ onBack }: { onBack: () => void }): JSX.Element {
@@ -89,7 +111,7 @@ function App(): JSX.Element {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState('');
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
-
+  
   useEffect(() => {
     if (gameState !== GAME_STATES.MENU) return;
 
