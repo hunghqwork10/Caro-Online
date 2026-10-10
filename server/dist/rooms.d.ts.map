@@ -1,1 +1,1 @@
-{"version":3,"file":"rooms.d.ts","sourceRoot":"","sources":["../src/rooms.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,MAAM,EAAU,MAAM,WAAW,CAAC;AAmC3C,QAAA,MAAM,MAAM,4CAAW,CAAC;AAGxB,wBAAgB,eAAe,CAAC,EAAE,EAAE,MAAM,QAkEzC;eA6Sc,MAAM"}
+{"version":3,"file":"rooms.d.ts","sourceRoot":"","sources":["../src/rooms.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,MAAM,EAAU,MAAM,WAAW,CAAC;AA6C3C,eAAO,IAAI,QAAQ,EAAE,MAAM,GAAG,IAAW,CAAC;AAqB1C,QAAA,MAAM,MAAM,4CAAW,CAAC;AACxB,eAAO,MAAM,UAAU,4CAAW,CAAC;AAGnC,wBAAgB,eAAe,CAAC,EAAE,EAAE,MAAM,QAoEzC;eA6Zc,MAAM"}

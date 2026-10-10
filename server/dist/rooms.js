@@ -1,17 +1,47 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.authRouter = exports.ioServer = void 0;
 exports.setupGameSocket = setupGameSocket;
 const express_1 = require("express");
 const node_crypto_1 = require("node:crypto");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 // Lưu phòng trong RAM; dữ liệu sẽ mất khi tiến trình server khởi động lại.
 const rooms = new Map();
+exports.ioServer = null;
+// Giả lập Database người dùng
+const USERS_DB = [];
+const JWT_SECRET = "MA_BIM_MAT_CUA_RIENG_SERVER_123456"; // Khóa bí mật để ký token
+function broadcastRoomList() {
+    if (!exports.ioServer)
+        return;
+    const waitingRooms = [...rooms.values()]
+        .filter((room) => room.status === 'waiting')
+        .map((room) => ({
+        id: room.id,
+        hostId: room.hostId,
+        playerCount: room.players.length,
+        boardSize: room.boardSize,
+        createdAt: room.createdAt,
+        maxPlayers: room.maxPlayers,
+    }));
+    exports.ioServer.emit('room_list_updated', waitingRooms);
+}
 const router = (0, express_1.Router)();
+exports.authRouter = (0, express_1.Router)();
 // Đăng ký các sự kiện Socket.IO để đồng bộ phòng và nước đi giữa người chơi.
 function setupGameSocket(io) {
+    exports.ioServer = io;
     io.on('connection', (socket) => {
         // Người chơi tham gia vào phòng socket (để broadcast dễ hơn)
         socket.on('join_room', (roomId) => {
-            socket.join(roomId);
+            void socket.join(roomId);
+        });
+        socket.on('leave_room', (roomId) => {
+            void socket.leave(roomId);
         });
         // LẮNG NGHE SỰ KIỆN ĐÁNH CỜ
         socket.on('make_move', (data) => {
@@ -49,17 +79,14 @@ function setupGameSocket(io) {
                     winnerId: userId,
                     lastMove: { x, y }
                 });
+                io.to(roomId).emit('move_updated', { room });
                 return;
             }
             // 6. Nếu chưa thắng, đổi lượt đi cho người chơi còn lại
             const nextPlayer = room.players.find(p => p.id !== userId);
             room.currentTurn = nextPlayer ? nextPlayer.id : userId;
             // 7. PHÁT SÓNG ĐỒNG BỘ ĐẾN CẢ PHÒNG
-            io.to(roomId).emit('move_updated', {
-                board: room.board,
-                nextTurn: room.currentTurn,
-                lastMove: { x, y, symbol: player.symbol }
-            });
+            io.to(roomId).emit('move_updated', { room });
         });
     });
 }
@@ -218,28 +245,110 @@ router.post('/', (req, res) => {
         ],
         status: 'waiting',
         boardSize,
+        maxPlayers: 2,
         createdAt: Date.now(),
         // Tạo lưới rỗng; host mang X và được đi trước.
         board: Array.from({ length: boardSize }, () => Array(boardSize).fill('')),
         currentTurn: playerId,
     };
     rooms.set(roomId, room);
+    broadcastRoomList();
     res.status(201).json({
         room,
         playerId,
     });
 });
+// API ĐĂNG KÝ (Tạo tài khoản)
+exports.authRouter.post('/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        if (!username?.trim() || !password) {
+            res.status(400).json({ message: 'Tên tài khoản và mật khẩu là bắt buộc' });
+            return;
+        }
+        if (USERS_DB.some((user) => user.username === username.trim())) {
+            res.status(409).json({ message: 'Tên tài khoản đã tồn tại' });
+            return;
+        }
+        const id = Date.now().toString();
+        const normalizedUsername = username.trim();
+        const passwordHash = await bcryptjs_1.default.hash(password, 10);
+        USERS_DB.push({ id, username: normalizedUsername, passwordHash });
+        const token = jsonwebtoken_1.default.sign({ userId: id, username: normalizedUsername }, JWT_SECRET, { expiresIn: '24h' });
+        res.status(201).json({
+            user: { id, username: normalizedUsername },
+            token,
+            message: 'Đăng ký thành công!',
+        });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Lỗi hệ thống" });
+    }
+});
+// API ĐĂNG NHẬP
+exports.authRouter.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        res.status(400).json({ message: 'Tên tài khoản và mật khẩu là bắt buộc' });
+        return;
+    }
+    // 1. Tìm user trong DB
+    const user = USERS_DB.find(u => u.username === username.trim());
+    if (!user) {
+        res.status(400).json({ message: "Tài khoản không tồn tại" });
+        return;
+    }
+    // 2. Kiểm tra mật khẩu
+    const isMatch = await bcryptjs_1.default.compare(password, user.passwordHash);
+    if (!isMatch) {
+        res.status(400).json({ message: "Mật khẩu không chính xác" });
+        return;
+    }
+    // 3. Tạo JWT Token (Hết hạn sau 1 ngày)
+    const token = jsonwebtoken_1.default.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+    // 4. Trả dữ liệu về Frontend
+    res.json({
+        token,
+        user: { id: user.id, username: user.username }
+    });
+});
+// POST /rooms/quick-join: tham gia phòng chờ đầu tiên còn chỗ.
+router.post('/quick-join', (req, res) => {
+    const { name } = req.body;
+    if (typeof name !== 'string' || !name.trim()) {
+        res.status(400).json({ message: 'Tên người chơi là bắt buộc' });
+        return;
+    }
+    const availableRoom = [...rooms.values()].find((room) => room.status === 'waiting' && room.players.length < room.maxPlayers);
+    if (!availableRoom) {
+        res.status(404).json({ message: 'Hiện không có phòng trống' });
+        return;
+    }
+    const playerId = (0, node_crypto_1.randomUUID)();
+    availableRoom.players.push({
+        id: playerId,
+        name: name.trim(),
+        symbol: 'O',
+    });
+    availableRoom.status = 'playing';
+    exports.ioServer?.to(availableRoom.id).emit('game_start', availableRoom);
+    exports.ioServer?.to(availableRoom.id).emit('move_updated', { room: availableRoom });
+    broadcastRoomList();
+    res.status(200).json({ room: availableRoom, playerId });
+});
 // GET /rooms: trả về danh sách rút gọn các phòng đang chờ người chơi.
 router.get('/', (_req, res) => {
-    // Danh sách chỉ gồm phòng đang chờ và thông tin tóm tắt để chọn phòng.
+    // Chỉ liệt kê các phòng đang chờ và còn chỗ để người chơi có thể tham gia.
     const waitingRooms = [...rooms.values()]
-        .filter((room) => room.status === 'waiting')
+        .filter((room) => room.status === 'waiting' && room.players.length < room.maxPlayers)
         .map((room) => ({
         id: room.id,
         hostId: room.hostId,
+        hostName: room.players.find((player) => player.id === room.hostId)?.name ?? 'Host',
         playerCount: room.players.length,
         boardSize: room.boardSize,
         createdAt: room.createdAt,
+        maxPlayers: room.maxPlayers,
     }));
     res.json(waitingRooms);
 });
@@ -277,6 +386,9 @@ router.post('/:roomId/join', (req, res) => {
     // Người thứ hai vào phòng sẽ nhận O và chuyển trận sang trạng thái đang chơi.
     room.players.push(player);
     room.status = 'playing';
+    exports.ioServer?.to(room.id).emit('game_start', room);
+    exports.ioServer?.to(room.id).emit('move_updated', { room });
+    broadcastRoomList();
     res.status(200).json({
         room,
         playerId,
@@ -303,6 +415,7 @@ router.delete('/:roomId/players/:playerId', (req, res) => {
         room.status = 'waiting';
         room.hostId = room.players[0].id;
     }
+    broadcastRoomList();
     res.status(204).send();
 });
 exports.default = router;

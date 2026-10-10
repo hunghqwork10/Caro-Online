@@ -42,6 +42,7 @@ export default function Board({ room, playerId }: BoardProps) {
     const [winner, setWinner] = useState<SquareValue>(null);
     const [winnerId, setWinnerId] = useState<string | null>(null);
     const [currentTurnId, setCurrentTurnId] = useState<string>(room.currentTurn);
+    const [players, setPlayers] = useState(room.players);
 
     useEffect(() => {
         if (!roomId) return;
@@ -51,6 +52,7 @@ export default function Board({ room, playerId }: BoardProps) {
                 // 1. Cập nhật mảng ô cờ cho BẢO CẢ 2 NGƯỜI
                 const flatSquares = updatedRoom.board.flat() as SquareValue[];
                 setSquares(flatSquares);
+                setPlayers(updatedRoom.players);
 
                 // 2. Cập nhật lượt đi tiếp theo
                 if (updatedRoom.currentTurn) {
@@ -88,6 +90,7 @@ export default function Board({ room, playerId }: BoardProps) {
             // thành mảng 1 chiều 'squares' để khớp với State hiện tại
             const flatSquares = updatedRoom.board.flat() as SquareValue[];
             setSquares(flatSquares);
+            setPlayers(updatedRoom.players);
 
             // Cập nhật người thắng từ Server (nếu có)
             if (updatedRoom.winnerId) {
@@ -101,6 +104,8 @@ export default function Board({ room, playerId }: BoardProps) {
         }
     }
 
+    const currentTurnName = players.find((player) => player.id === currentTurnId)?.name ?? currentTurnId;
+
     const resetGame = () => {
         setSquares(Array(BOARD_SIZE * BOARD_SIZE).fill(null));
         setXIsNext(true);
@@ -112,10 +117,12 @@ export default function Board({ room, playerId }: BoardProps) {
             <div style={{ marginBottom: '10px', fontSize: '18px', fontWeight: 'bold' }}>
                 {winnerId ? (
                     <span>
-                        {winnerId === 'draw' ? 'Hoà' : `Người thắng: ${winnerId}`}
+                        {winnerId === 'draw'
+                            ? 'Hoà'
+                            : `Người thắng: ${players.find((player) => player.id === winnerId)?.name ?? winnerId}`}
                     </span>
                 ) : (
-                    <>Lượt đi tiếp theo: {currentTurnId}</>
+                    <>Lượt đi tiếp theo: {currentTurnName}</>
                 )}
             </div>
 

@@ -1,9 +1,16 @@
 // src/services/gameService.ts
 import axios from 'axios';
 
+export interface RoomPlayer {
+  id: string;
+  name: string;
+  symbol: 'X' | 'O';
+}
+
 export interface RoomData {
   id: string;
   status: 'waiting' | 'playing' | 'finished';
+  players: RoomPlayer[];
   board: string[][];
   boardSize: number;
   currentTurn: string;

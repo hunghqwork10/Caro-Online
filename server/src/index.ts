@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import express, { Express, Response } from 'express'
 import { Server } from 'socket.io'
-import roomsRouter, { setupGameSocket } from './rooms'
+import roomsRouter, { authRouter, setupGameSocket } from './rooms'
 
 const app: Express = express()
 const PORT = process.env.PORT || 5000
@@ -21,6 +21,7 @@ app.get('/', (_req, res: Response) => {
 })
 
 app.use('/rooms', roomsRouter);
+app.use('/auth', authRouter);
 
 httpServer.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`)

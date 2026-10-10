@@ -1,11 +1,19 @@
 import type { JSX } from 'react'
 import './App.css'
 import Board from './components/Board'
+import AuthScreen from './components/AuthScreen'
 import React, { useEffect, useState } from 'react'
 import { AvailableRoom, createRoom, getAvailableRooms, joinRoom, quickJoinRoom, RoomSession } from './services/gameServices'
 
+interface AuthUser {
+  id?: string;
+  username: string;
+  [key: string]: unknown;
+}
+
 // Định nghĩa bộ các trạng thái cố định
 const GAME_STATES = {
+  AUTH: 'AUTH',     // Màn hình đăng nhập/đăng ký
   MENU: 'MENU',
   PLAYING: 'PLAYING',
   CREDITS: 'CREDITS',
@@ -104,13 +112,29 @@ function Credits({ onBack }: { onBack: () => void }): JSX.Element {
 }
 
 function App(): JSX.Element {
-  const [gameState, setGameState] = React.useState(GAME_STATES.MENU);
+  const [gameState, setGameState] = useState<string>(
+    typeof window !== 'undefined' && localStorage.getItem('token') ? GAME_STATES.MENU : GAME_STATES.AUTH,
+  );
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window === 'undefined') return null;
+
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return null;
+
+    try {
+      const parsedUser = JSON.parse(storedUser) as AuthUser;
+      return typeof parsedUser.username === 'string' ? parsedUser : null;
+    } catch {
+      return null;
+    }
+  });
   const [session, setSession] = React.useState<RoomSession | null>(null);
   const [roomCodeCopied, setRoomCodeCopied] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<AvailableRoom[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState('');
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
+  const playerName = user?.username || 'Người chơi';
   
   useEffect(() => {
     if (gameState !== GAME_STATES.MENU) return;
@@ -157,7 +181,7 @@ function App(): JSX.Element {
   // hàm xử lý logic chuyển trạng thái
   const startGame = async () => {
     try {
-      const created = await createRoom('Người chơi 1'); // tạm dùng tên cố định
+      const created = await createRoom(playerName);
       setSession(created);
       setGameState(GAME_STATES.PLAYING);
     } catch (error) {
@@ -167,7 +191,7 @@ function App(): JSX.Element {
 
   const quickJoin = async () => {
     try {
-      const joined = await quickJoinRoom('Người chơi');
+      const joined = await quickJoinRoom(playerName);
       setSession(joined);
       setGameState(GAME_STATES.PLAYING);
     } catch (error) {
@@ -179,7 +203,7 @@ function App(): JSX.Element {
   const joinExistingRoom = async (roomId: string) => {
     setJoiningRoomId(roomId);
     try {
-      const joined = await joinRoom(roomId, 'Người chơi');
+      const joined = await joinRoom(roomId, playerName);
       setSession(joined);
       setGameState(GAME_STATES.PLAYING);
     } catch (error) {
@@ -193,6 +217,14 @@ function App(): JSX.Element {
 
   const viewCredits = () => setGameState(GAME_STATES.CREDITS);
   const backToMenu = () => setGameState(GAME_STATES.MENU);
+
+  const handleAuthSuccess = (userData: AuthUser, token: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    setGameState(GAME_STATES.MENU);
+  };
+
   const copyRoomCode = async () => {
     if (!session) return;
 
@@ -204,6 +236,10 @@ function App(): JSX.Element {
       console.error('Không sao chép được mã phòng:', error);
     }
   };
+
+  if (gameState === GAME_STATES.AUTH) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
 
   if (gameState === GAME_STATES.MENU) {
     return <MainMenu
