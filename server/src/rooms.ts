@@ -545,6 +545,13 @@ router.delete('/:roomId/players/:playerId', (req: Request<{ roomId: string, play
     } else {
       room.status = 'waiting';
       room.hostId = room.players[0].id;
+            room.currentTurn = room.hostId;
+            room.winnerId = null;
+            room.board = Array.from(
+                { length: room.boardSize },
+                () => new Array<string>(room.boardSize).fill(''),
+            );
+            ioServer?.to(room.id).emit('move_updated', { room });
     }
 
     broadcastRoomList();

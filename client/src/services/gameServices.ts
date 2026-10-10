@@ -63,6 +63,10 @@ export async function joinRoom(
   return response.data;
 }
 
+export async function leaveRoom(roomId: string, playerId: string): Promise<void> {
+  await axios.delete(`/api/rooms/${roomId}/players/${playerId}`);
+}
+
 /**
  * Hàm gửi nước đi từ Front-end lên Back-end
  */

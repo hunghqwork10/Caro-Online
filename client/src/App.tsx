@@ -3,7 +3,7 @@ import './App.css'
 import Board from './components/Board'
 import AuthScreen from './components/AuthScreen'
 import React, { useEffect, useState } from 'react'
-import { AvailableRoom, createRoom, getAvailableRooms, joinRoom, quickJoinRoom, RoomSession } from './services/gameServices'
+import { AvailableRoom, createRoom, getAvailableRooms, joinRoom, leaveRoom, quickJoinRoom, RoomSession } from './services/gameServices'
 
 interface AuthUser {
   id?: string;
@@ -219,7 +219,20 @@ function App(): JSX.Element {
   };
 
   const viewCredits = () => setGameState(GAME_STATES.CREDITS);
-  const backToMenu = () => setGameState(GAME_STATES.MENU);
+  const backToMenu = async () => {
+    if (session) {
+      try {
+        await leaveRoom(session.room.id, session.playerId);
+      } catch (error) {
+        console.error('Không thể rời phòng:', error);
+        alert('Không thể rời phòng. Vui lòng thử lại.');
+        return;
+      }
+      setSession(null);
+    }
+
+    setGameState(GAME_STATES.MENU);
+  };
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
