@@ -3,14 +3,97 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px;
+  background: #f1f5f2;
+  color: #202a25;
 }
 
-.menu button {
-  padding: 10px 30px;
-  font-size: 16px;
+.menu h1 {
+  margin: 0 0 16px;
+  font-size: 34px;
+  text-align: center;
+}
+
+.menu > button {
+  width: min(100%, 320px);
+  min-height: 46px;
+  padding: 11px 20px;
+  border: 1px solid #287454;
+  border-radius: 5px;
+  background: #fff;
+  color: #205e44;
+  font: inherit;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.menu > button:first-of-type,
+.menu > button:hover {
+  border-color: #287454;
+  background: #287454;
+  color: #fff;
+}
+
+.menu > button:focus-visible {
+  outline: 3px solid rgb(40 116 84 / 24%);
+  outline-offset: 2px;
+}
+
+.game-screen {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-sizing: border-box;
+  padding: 24px 16px 32px;
+  background: #f1f5f2;
+  color: #202a25;
+}
+
+.game-toolbar {
+  display: flex;
+  width: min(100%, 560px);
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.room-code {
+  padding: 10px 14px;
+  border: 1px solid #d7e0da;
+  border-radius: 5px;
+  background: #fff;
+  color: #33463b;
+  font-size: 15px;
+}
+
+.room-copy-button {
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1px solid #287454;
+  border-radius: 5px;
+  background: #fff;
+  color: #205e44;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.room-copy-button:hover {
+  background: #287454;
+  color: #fff;
+}
+
+.room-copy-button:focus-visible {
+  outline: 3px solid rgb(40 116 84 / 24%);
+  outline-offset: 2px;
 }
 
 .available-rooms {

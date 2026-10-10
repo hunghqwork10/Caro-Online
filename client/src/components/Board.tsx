@@ -3,10 +3,12 @@ import Square from "./Square";
 import { SquareValue } from "../types";
 import { RoomData, sendMoveToServer } from "../services/gameServices";
 import { io } from 'socket.io-client';
+import './Board.css';
 
 interface BoardProps {
     room: RoomData;
     playerId: string;
+    onBackToMenu: () => void;
 }
 
 const BOARD_SIZE: number = 10; // đặt kích thước bàn cờ (ví dụ 10x10)
@@ -30,7 +32,7 @@ function subscribeToRoomChanges(
     };
 }
 
-export default function Board({ room, playerId }: BoardProps) {
+export default function Board({ room, playerId, onBackToMenu }: BoardProps) {
     const roomId = room.id;
 
     // định nghĩa kiểu rõ ràng cho state: Array của SquareValue
@@ -113,8 +115,8 @@ export default function Board({ room, playerId }: BoardProps) {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '20px' }}>
-            <div style={{ marginBottom: '10px', fontSize: '18px', fontWeight: 'bold' }}>
+        <section className="board-panel">
+            <div className="board-status" aria-live="polite">
                 {winnerId ? (
                     <span>
                         {winnerId === 'draw'
@@ -128,11 +130,10 @@ export default function Board({ room, playerId }: BoardProps) {
 
             {/* Bàn cờ render tự động bằng CSS Grid */}
             <div
+                className="board-grid"
                 style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${BOARD_SIZE}, 40px)`,
-                    gridTemplateRows: `repeat(${BOARD_SIZE}, 40px)`,
-                    border: '2px solid #333',
+                    gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
                 }}
             >
                 {squares.map((value: SquareValue, index: number) => (
@@ -144,9 +145,14 @@ export default function Board({ room, playerId }: BoardProps) {
                 ))}
             </div>
 
-            <button onClick={resetGame} style={{ marginTop: '15px', padding: '8px 20px', fontSize: '16px', cursor: 'pointer' }}>
-                Reset
-            </button>
-        </div>
+            <div className="board-actions">
+                <button className="board-reset" onClick={resetGame}>
+                    Reset
+                </button>
+                <button className="board-leave" onClick={onBackToMenu}>
+                    Về menu
+                </button>
+            </div>
+        </section>
     )
 }

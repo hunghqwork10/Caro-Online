@@ -284,22 +284,19 @@ function App(): JSX.Element {
   }
 
   return (
-    <>
+    <main className="game-screen">
       {session && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '20px' }}>
-          <span>Mã phòng: <strong>{session.room.id}</strong></span>
-          <button onClick={copyRoomCode}>
+        <header className="game-toolbar">
+          <span className="room-code">Mã phòng: <strong>{session.room.id}</strong></span>
+          <button className="room-copy-button" onClick={copyRoomCode}>
             {roomCodeCopied ? 'Đã sao chép' : 'Sao chép mã'}
           </button>
-        </div>
+        </header>
       )}
       {session && (
-        <Board room={session.room} playerId={session.playerId} />
+        <Board room={session.room} playerId={session.playerId} onBackToMenu={backToMenu} />
       )}
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
-        <button style={{ padding: '6px', cursor: 'pointer', fontSize: '14px' }} onClick={backToMenu}>Về menu</button>
-      </div>
-    </>
+    </main>
   )
 }
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './AuthScreen.css';
 
 type AuthUser = {
   id?: string;
