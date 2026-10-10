@@ -23,6 +23,7 @@ function MainMenu({
   onStart,
   onQuickJoin,
   onCredits,
+  onLogout,
   availableRooms,
   roomsLoading,
   roomsError,
@@ -33,6 +34,7 @@ function MainMenu({
   onStart: () => void;
   onQuickJoin: () => void;
   onCredits: () => void;
+  onLogout: () => void;
   availableRooms: AvailableRoom[];
   roomsLoading: boolean;
   roomsError: string;
@@ -52,6 +54,7 @@ function MainMenu({
     <button onClick={() => setShowRoomModal(true)}>Chọn phòng</button>
 
     <button onClick={onCredits}>Credits</button>
+    <button onClick={onLogout}>Đăng xuất</button>
 
     {/* Cửa sổ Modal hiển thị danh sách phòng (Chỉ hiện khi showRoomModal === true) */}
     {showRoomModal && (
@@ -217,6 +220,13 @@ function App(): JSX.Element {
 
   const viewCredits = () => setGameState(GAME_STATES.CREDITS);
   const backToMenu = () => setGameState(GAME_STATES.MENU);
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setSession(null);
+    setGameState(GAME_STATES.AUTH);
+  };
 
   const handleAuthSuccess = (userData: AuthUser, token: string) => {
     localStorage.setItem('token', token);
@@ -246,6 +256,7 @@ function App(): JSX.Element {
           onStart={startGame}
               onQuickJoin={quickJoin}
               onCredits={viewCredits}
+              onLogout={logout}
               availableRooms={availableRooms}
               roomsLoading={roomsLoading}
               roomsError={roomsError}
