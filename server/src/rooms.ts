@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Server, Socket } from 'socket.io';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { pool } from './db';
 
 type RoomStatus = 'waiting' | 'playing' | 'finished';
 
@@ -35,21 +36,16 @@ interface MoveRequestBody {
     index: number;
 }
 
-interface User {
-    id: string;
-    username: string;
-    passwordHash: string; // Mật khẩu đã được mã hóa bằng bcrypt
-    role?: string;
-}
-
 // Lưu phòng trong RAM; dữ liệu sẽ mất khi tiến trình server khởi động lại.
 const rooms = new Map<string, Room>();
 
 export let ioServer: Server | null = null;
 
-// Giả lập Database người dùng
-const USERS_DB: User[] = [];
-const JWT_SECRET = "MA_BIM_MAT_CUA_RIENG_SERVER_123456"; // Khóa bí mật để ký token
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+    throw new Error('Thiếu JWT_SECRET trong file server/.env');
+}
 
 function broadcastRoomList() {
   if (!ioServer) return;
@@ -346,72 +342,79 @@ router.post('/', (req: Request, res: Response) => {
 // API ĐĂNG KÝ (Tạo tài khoản)
 authRouter.post('/register', async (req: Request, res: Response) => {
     try {
-    const { username, password } = req.body as { username?: string; password?: string };
-    if (!username?.trim() || !password) {
-        res.status(400).json({ message: 'Tên tài khoản và mật khẩu là bắt buộc' });
-        return;
-    }
+        const { username, password } = req.body as { username?: string; password?: string };
+        if (!username?.trim() || !password) {
+            res.status(400).json({ message: 'Tên tài khoản và mật khẩu là bắt buộc' });
+            return;
+        }
 
-    if (USERS_DB.some((user) => user.username === username.trim())) {
-        res.status(409).json({ message: 'Tên tài khoản đã tồn tại' });
-        return;
-    }
+        const normalizedUsername = username.trim();
+        const passwordHash = await bcrypt.hash(password, 10);
+        const { rows } = await pool.query<{ id: number; username: string }>(
+            'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username',
+            [normalizedUsername, passwordHash],
+        );
+        const user = rows[0];
+        const id = String(user.id);
 
-    const id = Date.now().toString();
-    const normalizedUsername = username.trim();
-    const passwordHash = await bcrypt.hash(password, 10);
-    USERS_DB.push({ id, username: normalizedUsername, passwordHash });
-
-    const token = jwt.sign(
-        { userId: id, username: normalizedUsername },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-    );
-    res.status(201).json({
-        user: { id, username: normalizedUsername },
-        token,
-        message: 'Đăng ký thành công!',
-    });
+        const token = jwt.sign(
+            { userId: id, username: user.username },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        res.status(201).json({
+            user: { id, username: user.username },
+            token,
+            message: 'Đăng ký thành công!',
+        });
     } catch (error) {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
+            res.status(409).json({ message: 'Tên tài khoản đã tồn tại' });
+            return;
+        }
         console.error('Lỗi đăng ký:', error);
-        res.status(500).json({ message: "Lỗi hệ thống" });
+        res.status(500).json({ message: 'Lỗi hệ thống' });
     }
 });
 
 // API ĐĂNG NHẬP
 authRouter.post('/login', async (req: Request, res: Response) => {
-    const { username, password } = req.body as { username?: string; password?: string };
-    if (!username || !password) {
-        res.status(400).json({ message: 'Tên tài khoản và mật khẩu là bắt buộc' });
-        return;
+    try {
+        const { username, password } = req.body as { username?: string; password?: string };
+        if (!username?.trim() || !password) {
+            res.status(400).json({ message: 'Tên tài khoản và mật khẩu là bắt buộc' });
+            return;
+        }
+
+        const { rows } = await pool.query<{
+            id: number;
+            username: string;
+            password_hash: string;
+        }>(
+            'SELECT id, username, password_hash FROM users WHERE username = $1',
+            [username.trim()],
+        );
+        const user = rows[0];
+        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+            res.status(400).json({ message: 'Tên tài khoản hoặc mật khẩu không chính xác' });
+            return;
+        }
+
+        const id = String(user.id);
+        const token = jwt.sign(
+            { userId: id, username: user.username },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            token,
+            user: { id, username: user.username }
+        });
+    } catch (error) {
+        console.error('Lỗi đăng nhập:', error);
+        res.status(500).json({ message: 'Lỗi hệ thống' });
     }
-
-    // 1. Tìm user trong DB
-    const user = USERS_DB.find(u => u.username === username.trim());
-    if (!user) {
-        res.status(400).json({ message: "Tài khoản không tồn tại" });
-        return;
-    }
-
-    // 2. Kiểm tra mật khẩu
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-        res.status(400).json({ message: "Mật khẩu không chính xác" });
-        return;
-    }
-
-    // 3. Tạo JWT Token (Hết hạn sau 1 ngày)
-    const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-    );
-
-    // 4. Trả dữ liệu về Frontend
-    res.json({
-        token,
-        user: { id: user.id, username: user.username }
-    });
 });
 
 // POST /rooms/quick-join: tham gia phòng chờ đầu tiên còn chỗ.

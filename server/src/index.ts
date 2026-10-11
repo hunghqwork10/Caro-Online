@@ -1,7 +1,9 @@
+import 'dotenv/config'
 import { createServer } from 'node:http'
 import express, { Express, Response } from 'express'
 import { Server } from 'socket.io'
 import roomsRouter, { authRouter, setupGameSocket } from './rooms'
+import { pool } from './db'
 
 const app: Express = express()
 const PORT = process.env.PORT || 5000
@@ -23,6 +25,17 @@ app.get('/', (_req, res: Response) => {
 app.use('/rooms', roomsRouter);
 app.use('/auth', authRouter);
 
-httpServer.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`)
-})
+async function startServer() {
+  try {
+    await pool.query('SELECT 1')
+    console.log('PostgreSQL connected')
+    httpServer.listen(PORT, () => {
+      console.log(`Server is listening on port ${PORT}`)
+    })
+  } catch (error) {
+    console.error('Không thể kết nối PostgreSQL:', error)
+    process.exitCode = 1
+  }
+}
+
+void startServer()
