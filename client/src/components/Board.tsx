@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import Square from "./Square";
 import { SquareValue } from "../types";
-import { RoomData, sendMoveToServer } from "../services/gameServices";
+import { RoomData, sendMoveToServer, startRematch } from "../services/gameServices";
 import { io } from 'socket.io-client';
 import './Board.css';
 
 interface BoardProps {
-    room: RoomData;
-    playerId: string;
-    onBackToMenu: () => void;
+    readonly room: RoomData;
+    readonly playerId: string;
+    readonly onBackToMenu: () => void;
 }
 
-const BOARD_SIZE: number = 10; // đặt kích thước bàn cờ (ví dụ 10x10)
+const socket = io("http://localhost:5000/", { autoConnect: false });
 
-const socket = io("http://localhost:5000/"); // Kết nối tới server
+function flattenBoard(board: string[][]): SquareValue[] {
+    return board.flat().map((value) => value === '' ? null : value as SquareValue);
+}
 
 function subscribeToRoomChanges(
     roomId: string,
@@ -34,111 +36,112 @@ function subscribeToRoomChanges(
 
 export default function Board({ room, playerId, onBackToMenu }: BoardProps) {
     const roomId = room.id;
-
-    // định nghĩa kiểu rõ ràng cho state: Array của SquareValue
-    const [squares, setSquares] = useState<SquareValue[]>(
-        Array(BOARD_SIZE * BOARD_SIZE).fill(null)
-    );
-
-    const [xIsNext, setXIsNext] = useState<boolean>(true);
-    const [winner, setWinner] = useState<SquareValue>(null);
-    const [winnerId, setWinnerId] = useState<string | null>(null);
+    const [currentRoom, setCurrentRoom] = useState(room);
+    const [squares, setSquares] = useState<SquareValue[]>(() => flattenBoard(room.board));
+    const [winnerId, setWinnerId] = useState<string | null>(room.winnerId ?? null);
     const [currentTurnId, setCurrentTurnId] = useState<string>(room.currentTurn);
     const [players, setPlayers] = useState(room.players);
+    const [isResetting, setIsResetting] = useState(false);
 
     useEffect(() => {
         if (!roomId) return;
 
+        socket.auth = { token: localStorage.getItem('token') };
+        socket.connect();
         const unsubscribe = subscribeToRoomChanges(roomId, (updatedRoom) => {
             if (updatedRoom?.board) {
                 // 1. Cập nhật mảng ô cờ cho BẢO CẢ 2 NGƯỜI
-                const flatSquares = updatedRoom.board.flat() as SquareValue[];
-                setSquares(flatSquares);
+                setCurrentRoom(updatedRoom);
+                setSquares(flattenBoard(updatedRoom.board));
                 setPlayers(updatedRoom.players);
 
                 // 2. Cập nhật lượt đi tiếp theo
-                if (updatedRoom.currentTurn) {
-                    setCurrentTurnId(updatedRoom.currentTurn);
-                }
-
-                // 3. Cập nhật trạng thái thắng/thua (nếu có)
-                if (updatedRoom.winnerId) {
-                    setWinnerId(updatedRoom.winnerId);
-                }
+                setCurrentTurnId(updatedRoom.currentTurn);
+                setWinnerId(updatedRoom.winnerId ?? null);
             }
         });
 
         // Cleanup listener khi unmount component
         return () => {
             if (typeof unsubscribe === 'function') unsubscribe();
+            socket.disconnect();
         };
     }, [roomId]);
 
     const handleClick = async (index: number) => {
         // 1. CHỐNG CLICK BỪA Ở CLIENT (Tối ưu trải nghiệm)
         // Nếu ô đã được đánh hoặc game đã kết thúc, hoặc KHÔNG PHẢI lượt của mình thì chặn luôn không cho click
-        if (squares[index] || winner || currentTurnId !== playerId) return;
+        if (squares[index] || currentRoom.status !== 'playing' || currentTurnId !== playerId) return;
 
         // 2. GỬI NƯỚC ĐI LÊN SERVER ĐỂ KIỂM TRA CHỐNG CHEAT
         // (Bóc tách index ngược lại thành row và col để truyền vào hàm service)
-        const row = Math.floor(index / BOARD_SIZE);
-        const col = index % BOARD_SIZE;
+        const row = Math.floor(index / currentRoom.boardSize);
+        const col = index % currentRoom.boardSize;
 
-        const updatedRoom = await sendMoveToServer(roomId, playerId, row, col, BOARD_SIZE);
+        const updatedRoom = await sendMoveToServer(roomId, row, col, currentRoom.boardSize);
 
         // 3. CẬP NHẬT GIAO DIỆN KHI SERVER ĐỒNG Ý
         if (updatedRoom) {
             // Vì Backend đang trả về mảng 2 chiều 'board', ta cần làm phẳng (flatten) nó
             // thành mảng 1 chiều 'squares' để khớp với State hiện tại
-            const flatSquares = updatedRoom.board.flat() as SquareValue[];
-            setSquares(flatSquares);
+            setCurrentRoom(updatedRoom);
+            setSquares(flattenBoard(updatedRoom.board));
             setPlayers(updatedRoom.players);
-
-            // Cập nhật người thắng từ Server (nếu có)
-            if (updatedRoom.winnerId) {
-                // Nếu winnerId là 'draw' thì xử hòa, ngược lại lấy ký hiệu của người thắng
-                setWinnerId(updatedRoom.winnerId);
-            } else {
-                // Cập nhật lượt đi dựa trên ID người chơi tiếp theo do Server chỉ định
-                // (Có thể chuyển biến currentTurnId thành state để lưu)
-                setCurrentTurnId(updatedRoom.currentTurn);
-            }
+            setWinnerId(updatedRoom.winnerId ?? null);
+            setCurrentTurnId(updatedRoom.currentTurn);
         }
     }
 
     const currentTurnName = players.find((player) => player.id === currentTurnId)?.name ?? currentTurnId;
+    let statusMessage: string;
+    if (currentRoom.status === 'closed') {
+        statusMessage = winnerId
+            ? `Phòng đã đóng; ${players.find((player) => player.id === winnerId)?.name ?? winnerId} thắng do đối thủ rời phòng`
+            : 'Phòng đã đóng';
+    } else if (winnerId === 'draw') {
+        statusMessage = 'Hoà';
+    } else if (winnerId) {
+        statusMessage = `Người thắng: ${players.find((player) => player.id === winnerId)?.name ?? winnerId}`;
+    } else if (currentRoom.status === 'waiting') {
+        statusMessage = 'Đang chờ đối thủ tham gia';
+    } else {
+        statusMessage = `Lượt đi tiếp theo: ${currentTurnName}`;
+    }
 
-    const resetGame = () => {
-        setSquares(Array(BOARD_SIZE * BOARD_SIZE).fill(null));
-        setXIsNext(true);
-        setWinner(null);
+    const resetGame = async () => {
+        if (currentRoom.status !== 'finished' || isResetting) return;
+        setIsResetting(true);
+        try {
+            const newSession = await startRematch(roomId);
+            setCurrentRoom(newSession.room);
+            setSquares(flattenBoard(newSession.room.board));
+            setPlayers(newSession.room.players);
+            setWinnerId(null);
+            setCurrentTurnId(newSession.room.currentTurn);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Không thể bắt đầu ván mới');
+        } finally {
+            setIsResetting(false);
+        }
     }
 
     return (
         <section className="board-panel">
             <div className="board-status" aria-live="polite">
-                {winnerId ? (
-                    <span>
-                        {winnerId === 'draw'
-                            ? 'Hoà'
-                            : `Người thắng: ${players.find((player) => player.id === winnerId)?.name ?? winnerId}`}
-                    </span>
-                ) : (
-                    <>Lượt đi tiếp theo: {currentTurnName}</>
-                )}
+                <span>{statusMessage}</span>
             </div>
 
             {/* Bàn cờ render tự động bằng CSS Grid */}
             <div
                 className="board-grid"
                 style={{
-                    gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
-                    gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
+                    gridTemplateColumns: `repeat(${currentRoom.boardSize}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${currentRoom.boardSize}, minmax(0, 1fr))`,
                 }}
             >
                 {squares.map((value: SquareValue, index: number) => (
                     <Square 
-                        key={index}
+                        key={`${Math.floor(index / currentRoom.boardSize)}-${index % currentRoom.boardSize}`}
                         value={value}
                         onClick={() => handleClick(index)}
                     />
@@ -146,8 +149,12 @@ export default function Board({ room, playerId, onBackToMenu }: BoardProps) {
             </div>
 
             <div className="board-actions">
-                <button className="board-reset" onClick={resetGame}>
-                    Reset
+                <button
+                    className="board-reset"
+                    onClick={resetGame}
+                    disabled={currentRoom.status !== 'finished' || isResetting}
+                >
+                    {isResetting ? 'Đang tạo ván...' : 'Chơi lại'}
                 </button>
                 <button className="board-leave" onClick={onBackToMenu}>
                     Về menu

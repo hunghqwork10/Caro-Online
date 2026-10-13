@@ -2,8 +2,10 @@ import 'dotenv/config'
 import { createServer } from 'node:http'
 import express, { Express, Response } from 'express'
 import { Server } from 'socket.io'
-import roomsRouter, { authRouter, setupGameSocket } from './rooms'
+import roomsRouter, { setupGameSocket } from './gameRoutes'
+import authRouter from './authRoutes'
 import { pool } from './db'
+import { authenticateToken } from './auth'
 
 const app: Express = express()
 const PORT = process.env.PORT || 5000
@@ -12,6 +14,19 @@ const io = new Server(httpServer, {
   cors: {
     origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   },
+})
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token
+  const user = typeof token === 'string' ? authenticateToken(token) : null
+
+  if (!user) {
+    next(new Error('Unauthorized'))
+    return
+  }
+
+  socket.data.userId = String(user.id)
+  next()
 })
 
 app.use(express.json())
