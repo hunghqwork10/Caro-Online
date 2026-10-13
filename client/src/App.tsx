@@ -285,14 +285,14 @@ function App(): JSX.Element {
 
   return (
     <main className="game-screen">
-      {session && (
+      {/* {session && (
         <header className="game-toolbar">
           <span className="room-code">Mã phòng: <strong>{session.room.id}</strong></span>
           <button className="room-copy-button" onClick={copyRoomCode}>
             {roomCodeCopied ? 'Đã sao chép' : 'Sao chép mã'}
           </button>
         </header>
-      )}
+      )} */}
       {session && (
         <Board room={session.room} playerId={session.playerId} onBackToMenu={backToMenu} />
       )}
