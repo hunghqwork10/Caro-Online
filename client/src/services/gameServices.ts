@@ -9,7 +9,9 @@ function authConfig() {
 export interface RoomPlayer {
   id: string;
   name: string;
+  displayName?: string;
   symbol: 'X' | 'O';
+  avatarUrl?: string | null;
 }
 
 export interface RoomData {

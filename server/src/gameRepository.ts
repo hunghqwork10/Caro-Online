@@ -7,7 +7,9 @@ export type GameRoomStatus = 'waiting' | 'playing' | 'finished' | 'closed'
 export interface GamePlayer {
   id: string
   name: string
+  displayName?: string
   symbol: 'X' | 'O'
+  avatarUrl?: string | null
 }
 
 export interface GameRoom {
@@ -37,7 +39,9 @@ interface RoomRow {
   room_status: 'waiting' | 'playing' | 'closed'
   created_at: Date
   host_name: string
+  host_avatar_url: string | null
   guest_name: string | null
+  guest_avatar_url: string | null
   match_id: number | null
   board_size: number | null
   player_x_id: number | null
@@ -86,7 +90,9 @@ async function getRoomRow(roomCode: string, client?: PoolClient): Promise<RoomRo
     `SELECT r.id AS db_room_id, r.room_code, r.host_id, r.guest_id,
             r.status AS room_status, r.created_at,
             COALESCE(host.display_name, host.username) AS host_name,
+            host.avatar_url AS host_avatar_url,
             COALESCE(guest.display_name, guest.username) AS guest_name,
+            guest.avatar_url AS guest_avatar_url,
             m.id AS match_id, m.board_size, m.player_x_id, m.player_o_id,
             m.current_turn_id, m.winner_id, m.result_status
      FROM rooms r
@@ -113,11 +119,19 @@ async function roomFromRow(row: RoomRow, client?: PoolClient): Promise<GameRoom>
   const players: GamePlayer[] = [{
     id: String(row.host_id),
     name: row.host_name,
+    displayName: row.host_name,
     symbol: 'X',
+    avatarUrl: row.host_avatar_url ?? null,
   }]
 
   if (row.guest_id !== null && row.guest_name !== null) {
-    players.push({ id: String(row.guest_id), name: row.guest_name, symbol: 'O' })
+    players.push({
+      id: String(row.guest_id),
+      name: row.guest_name,
+      displayName: row.guest_name,
+      symbol: 'O',
+      avatarUrl: row.guest_avatar_url ?? null,
+    })
   }
 
   const board = new Array(boardSize).fill(0).map(() => new Array<string>(boardSize).fill(''))

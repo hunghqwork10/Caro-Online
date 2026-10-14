@@ -13,6 +13,18 @@ interface BoardProps {
 
 const socket = io("http://localhost:5000/", { autoConnect: false });
 
+function getPlayerInitials(name: string): string {
+    const trimmed = name.trim();
+    if (!trimmed) return 'P';
+
+    return trimmed
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || 'P';
+}
+
 function flattenBoard(board: string[][]): SquareValue[] {
     return board.flat().map((value) => value === '' ? null : value as SquareValue);
 }
@@ -93,6 +105,8 @@ export default function Board({ room, playerId, onBackToMenu }: BoardProps) {
     }
 
     const currentTurnName = players.find((player) => player.id === currentTurnId)?.name ?? currentTurnId;
+    const leftPlayer = players[0] ?? null;
+    const rightPlayer = players[1] ?? null;
     let statusMessage: string;
     if (currentRoom.status === 'closed') {
         statusMessage = winnerId
@@ -107,6 +121,44 @@ export default function Board({ room, playerId, onBackToMenu }: BoardProps) {
     } else {
         statusMessage = `Lượt đi tiếp theo: ${currentTurnName}`;
     }
+
+    const renderPlayerCard = (player: typeof players[number] | null, side: 'left' | 'right') => {
+        if (!player) {
+            return (
+                <aside className={`board-player board-player-empty board-player-${side}`}>
+                    <div className="player-avatar-fallback">?</div>
+                    <div className="player-info">
+                        <span className="player-symbol">–</span>
+                        <strong>Đang chờ</strong>
+                    </div>
+                </aside>
+            );
+        }
+
+        const displayName = player.displayName ?? player.name;
+        const avatarText = getPlayerInitials(displayName);
+        const isCurrentTurn = currentTurnId === player.id;
+
+        return (
+            <aside className={`board-player board-player-${side} ${isCurrentTurn ? 'is-turn' : ''}`}>
+                <div className="player-avatar-wrap">
+                    {player.avatarUrl ? (
+                        <img
+                            src={player.avatarUrl}
+                            alt={displayName}
+                            className="player-avatar-image"
+                        />
+                    ) : (
+                        <div className="player-avatar-fallback">{avatarText}</div>
+                    )}
+                </div>
+                <div className="player-info">
+                    <span className="player-symbol">{player.symbol}</span>
+                    <strong>{displayName}</strong>
+                </div>
+            </aside>
+        );
+    };
 
     const resetGame = async () => {
         if (currentRoom.status !== 'finished' || isResetting) return;
@@ -127,38 +179,45 @@ export default function Board({ room, playerId, onBackToMenu }: BoardProps) {
 
     return (
         <section className="board-panel">
-            <div className="board-status" aria-live="polite">
-                <span>{statusMessage}</span>
-            </div>
+            <div className="board-layout">
+                {renderPlayerCard(leftPlayer, 'left')}
 
-            {/* Bàn cờ render tự động bằng CSS Grid */}
-            <div
-                className="board-grid"
-                style={{
-                    gridTemplateColumns: `repeat(${currentRoom.boardSize}, minmax(0, 1fr))`,
-                    gridTemplateRows: `repeat(${currentRoom.boardSize}, minmax(0, 1fr))`,
-                }}
-            >
-                {squares.map((value: SquareValue, index: number) => (
-                    <Square 
-                        key={`${Math.floor(index / currentRoom.boardSize)}-${index % currentRoom.boardSize}`}
-                        value={value}
-                        onClick={() => handleClick(index)}
-                    />
-                ))}
-            </div>
+                <div className="board-main-column">
+                    <div className="board-status" aria-live="polite">
+                        <span>{statusMessage}</span>
+                    </div>
 
-            <div className="board-actions">
-                <button
-                    className="board-reset"
-                    onClick={resetGame}
-                    disabled={currentRoom.status !== 'finished' || isResetting}
-                >
-                    {isResetting ? 'Đang tạo ván...' : 'Chơi lại'}
-                </button>
-                <button className="board-leave" onClick={onBackToMenu}>
-                    Về menu
-                </button>
+                    <div
+                        className="board-grid"
+                        style={{
+                            gridTemplateColumns: `repeat(${currentRoom.boardSize}, minmax(0, 1fr))`,
+                            gridTemplateRows: `repeat(${currentRoom.boardSize}, minmax(0, 1fr))`,
+                        }}
+                    >
+                        {squares.map((value: SquareValue, index: number) => (
+                            <Square
+                                key={`${Math.floor(index / currentRoom.boardSize)}-${index % currentRoom.boardSize}`}
+                                value={value}
+                                onClick={() => handleClick(index)}
+                            />
+                        ))}
+                    </div>
+
+                    <div className="board-actions">
+                        <button
+                            className="board-reset"
+                            onClick={resetGame}
+                            disabled={currentRoom.status !== 'finished' || isResetting}
+                        >
+                            {isResetting ? 'Đang tạo ván...' : 'Chơi lại'}
+                        </button>
+                        <button className="board-leave" onClick={onBackToMenu}>
+                            Về menu
+                        </button>
+                    </div>
+                </div>
+
+                {renderPlayerCard(rightPlayer, 'right')}
             </div>
         </section>
     )

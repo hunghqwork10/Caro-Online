@@ -22,8 +22,13 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10)
-    const { rows } = await pool.query<{ id: number; username: string }>(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username',
+    const { rows } = await pool.query<{
+      id: number;
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+    }>(
+      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, display_name, avatar_url',
       [normalizedUsername, passwordHash],
     )
     const user = rows[0]
@@ -33,7 +38,12 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       { expiresIn: '24h' },
     )
     res.status(201).json({
-      user: { id: String(user.id), username: user.username },
+      user: {
+        id: String(user.id),
+        username: user.username,
+        display_name: user.display_name ?? user.username,
+        avatar_url: user.avatar_url ?? null,
+      },
       token,
       message: 'Đăng ký thành công!',
     })
@@ -60,8 +70,10 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       id: number
       username: string
       password_hash: string
+      display_name: string | null
+      avatar_url: string | null
     }>(
-      'SELECT id, username, password_hash FROM users WHERE username = $1',
+      'SELECT id, username, password_hash, display_name, avatar_url FROM users WHERE username = $1',
       [normalizedUsername],
     )
     const user = rows[0]
@@ -75,7 +87,15 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       JWT_SECRET,
       { expiresIn: '24h' },
     )
-    res.json({ token, user: { id: String(user.id), username: user.username } })
+    res.json({
+      token,
+      user: {
+        id: String(user.id),
+        username: user.username,
+        display_name: user.display_name ?? user.username,
+        avatar_url: user.avatar_url ?? null,
+      },
+    })
   } catch (error) {
     console.error('Lỗi đăng nhập:', error)
     res.status(500).json({ message: 'Lỗi hệ thống' })
