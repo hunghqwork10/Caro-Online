@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import './AuthScreen.css';
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
-const buildApiUrl = (path: string) => `${API_URL}${path}`;
+const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
+const buildApiUrl = (path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return API_URL ? `${API_URL}${normalizedPath}` : normalizedPath;
+};
 
 type AuthUser = {
   id?: string;
