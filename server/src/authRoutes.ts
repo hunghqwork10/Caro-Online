@@ -28,7 +28,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       display_name: string | null;
       avatar_url: string | null;
     }>(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, display_name, avatar_url',
+      'INSERT INTO users (username, password_hash, display_name) VALUES ($1, $2, $1) RETURNING id, username, display_name, avatar_url',
       [normalizedUsername, passwordHash],
     )
     const user = rows[0]
