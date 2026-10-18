@@ -1,6 +1,9 @@
 // src/services/gameService.ts
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL ?? '';
+const buildApiUrl = (path: string) => `${API_URL}${path}`;
+
 function authConfig() {
   const token = localStorage.getItem('token');
   return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
@@ -39,12 +42,12 @@ export interface AvailableRoom {
 }
 
 export async function getAvailableRooms(): Promise<AvailableRoom[]> {
-  const response = await axios.get<AvailableRoom[]>('/api/rooms', authConfig());
+  const response = await axios.get<AvailableRoom[]>(buildApiUrl('/api/rooms'), authConfig());
   return response.data;
 }
 
 export async function createRoom(name: string): Promise<RoomSession> {
-  const response = await axios.post<RoomSession>('/api/rooms', {
+  const response = await axios.post<RoomSession>(buildApiUrl('/api/rooms'), {
     name,
     boardSize: 15,
   }, authConfig());
@@ -52,7 +55,7 @@ export async function createRoom(name: string): Promise<RoomSession> {
 }
 
 export async function quickJoinRoom(name: string): Promise<RoomSession> {
-  const response = await axios.post<RoomSession>('/api/rooms/quick-join', {
+  const response = await axios.post<RoomSession>(buildApiUrl('/api/rooms/quick-join'), {
     name,
     boardSize: 15,
   }, authConfig());
@@ -64,7 +67,7 @@ export async function joinRoom(
   name: string,
 ): Promise<RoomSession> {
   const response = await axios.post<RoomSession>(
-    `/api/rooms/${roomId}/join`,
+    buildApiUrl(`/api/rooms/${roomId}/join`),
     { name },
     authConfig(),
   );
@@ -73,7 +76,7 @@ export async function joinRoom(
 
 export async function startRematch(roomId: string): Promise<RoomSession> {
   const response = await axios.post<RoomSession>(
-    `/api/rooms/${roomId}/rematch`,
+    buildApiUrl(`/api/rooms/${roomId}/rematch`),
     {},
     authConfig(),
   );
@@ -81,7 +84,7 @@ export async function startRematch(roomId: string): Promise<RoomSession> {
 }
 
 export async function leaveRoom(roomId: string, playerId: string): Promise<void> {
-  await axios.delete(`/api/rooms/${roomId}/players/${playerId}`, authConfig());
+  await axios.delete(buildApiUrl(`/api/rooms/${roomId}/players/${playerId}`), authConfig());
 }
 
 /**
@@ -99,7 +102,7 @@ export const sendMoveToServer = async (
 
     try {
         // Gọi API thông qua Vite proxy (/api)
-        const response = await axios.post<RoomData>(`/api/rooms/${roomId}/moves`, {
+        const response = await axios.post<RoomData>(buildApiUrl(`/api/rooms/${roomId}/moves`), {
             index: index
         }, authConfig());
         return response.data;

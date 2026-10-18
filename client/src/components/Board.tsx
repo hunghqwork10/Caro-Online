@@ -5,13 +5,15 @@ import { RoomData, sendMoveToServer, startRematch } from "../services/gameServic
 import { io } from 'socket.io-client';
 import './Board.css';
 
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+
 interface BoardProps {
     readonly room: RoomData;
     readonly playerId: string;
     readonly onBackToMenu: () => void;
 }
 
-const socket = io("http://localhost:5000/", { autoConnect: false });
+const socket = io(SOCKET_URL, { autoConnect: false });
 
 function getPlayerInitials(name: string): string {
     const trimmed = name.trim();

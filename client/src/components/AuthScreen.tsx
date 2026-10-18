@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import './AuthScreen.css';
 
+const API_URL = import.meta.env.VITE_API_URL ?? '';
+const buildApiUrl = (path: string) => `${API_URL}${path}`;
+
 type AuthUser = {
   id?: string;
   username: string;
@@ -35,7 +38,7 @@ function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     setError('');
 
     try {
-      const url = isLogin ? '/api/auth/login' : '/api/auth/register';
+      const url = isLogin ? buildApiUrl('/api/auth/login') : buildApiUrl('/api/auth/register');
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
