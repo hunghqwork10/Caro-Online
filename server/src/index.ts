@@ -11,6 +11,7 @@ const allowedOrigins = [
   process.env.CLIENT_ORIGIN,
   'http://localhost:5173',
   'https://caro-online-5n87.vercel.app',
+  'https://caro-online-hhq2.vercel.app',
 ].filter((origin): origin is string => Boolean(origin))
 
 const app: Express = express()
