@@ -7,11 +7,11 @@
 }
 
 .board-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 180px) minmax(0, 520px) minmax(0, 180px);
   align-items: center;
-  justify-content: center;
   gap: 18px;
-  width: 100%;
+  width: min(100%, 916px);
 }
 
 .board-main-column {
@@ -19,7 +19,7 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  flex: 1;
+  min-width: 0;
 }
 
 .board-player {
@@ -168,4 +168,22 @@
 .board-actions button:focus-visible {
   outline: 3px solid rgb(40 116 84 / 24%);
   outline-offset: 2px;
+}
+
+@media (max-width: 960px) {
+  .board-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 520px);
+    gap: 12px;
+  }
+
+  .board-main-column {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .board-player {
+    width: 100%;
+    min-height: 140px;
+  }
 }
